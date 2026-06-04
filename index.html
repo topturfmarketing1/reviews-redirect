@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finding your nearest location...</title>
+<style>
+  body { font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f9f9f9; color: #111; }
+  .card { text-align: center; padding: 2rem; max-width: 380px; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 8px; }
+  p { font-size: 14px; color: #666; margin-bottom: 1.5rem; }
+  .spinner { width: 32px; height: 32px; border: 2.5px solid #eee; border-top-color: #333; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .btn { display: inline-block; padding: 10px 24px; background: #111; color: #fff; border-radius: 8px; text-decoration: none; font-size: 14px; margin: 4px; }
+  .btn.outline { background: none; color: #111; border: 1px solid #ccc; }
+  #branches-list { display: none; text-align: left; width: 100%; }
+  .branch-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
+  .branch-item:last-child { border-bottom: none; }
+  .branch-name { font-size: 14px; font-weight: 500; }
+  .branch-dist { font-size: 13px; color: #999; }
+  .branch-link { font-size: 13px; color: #0066cc; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="loading">
+    <div class="spinner"></div>
+    <h1>Finding your nearest location</h1>
+    <p>Allow location access to be redirected to the closest branch's Google Reviews</p>
+  </div>
+  <div id="success" style="display:none;">
+    <h1>Redirecting you...</h1>
+    <p id="nearest-msg"></p>
+  </div>
+  <div id="denied" style="display:none;">
+    <h1>Choose a location</h1>
+    <p>Location access was denied. Select a branch below:</p>
+    <div id="branches-list"></div>
+  </div>
+  <div id="error" style="display:none;">
+    <h1>Something went wrong</h1>
+    <p>Please choose a branch below:</p>
+    <div id="branches-list"></div>
+  </div>
+</div>
+<script>
+const branches = [{"name":"NC - Indian Land","lat":"35.00533927371986","lng":"-80.89498216423964","url":"https://g.page/r/CbHsgAHI7hcEEAE/review"},{"name":"NC - Charlotte","lat":"35.321056893256156","lng":"-80.82493127170235","url":"https://g.page/r/CTp3qlIZo1awEAE/review"},{"name":"TN - Nashville","lat":"35.61095948144408","lng":"-87.040539017732","url":"https://g.page/r/CU4TdKhQyO4IEAE/review"},{"name":"TX - Keller","lat":"32.94376328510918","lng":"-97.25767367170235","url":"https://g.page/r/CaxyLrVwl6ONEAE/review"},{"name":"TX - McKinney","lat":"33.305373367118435 ","lng":"-96.6464598968369","url":"https://g.page/r/CcUdZIbH_D2ZEAE/review"},{"name":"SC - Greenvile","lat":"34.918487659511435 ","lng":"-82.2099937201208","url":"https://g.page/r/CRMsG3B2y6RMEAE/review"},{"name":"SC - Spartanburg","lat":"34.99551328225777","lng":"-81.91660949313562","url":"https://g.page/r/CQyXnZpp4RsJEAE/review"},{"name":"GA - Austell","lat":"33.81377851251312","lng":"-84.6249371888962","url":"https://g.page/r/CQUjSpOZF9kVEAE/review"},{"name":"GA - Lawerenceville","lat":"33.928850237074506","lng":"-83.9733064391653","url":"https://g.page/r/CQUjSpOZF9kVEAE/review"},{"name":"GA - Gainesville","lat":"34.25004420881896 ","lng":"-83.97805417170235","url":"https://g.page/r/CQUjSpOZF9kVEAE/review"},{"name":"GA - Conyers","lat":"33.652945069487295","lng":"-84.0236576465678","url":"https://g.page/r/CQUjSpOZF9kVEAE/review"},{"name":"GA - Fayetteville","lat":"33.49881070130929 ","lng":"-84.43648227355298","url":"https://g.page/r/CQUjSpOZF9kVEAE/review"},{"name":"GA - Marietta","lat":"34.030849967502846 ","lng":"-84.52514988149369","url":"https://g.page/r/CQUjSpOZF9kVEAE/review"}];
+
+function dist(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function showBranchList() {
+  const lists = document.querySelectorAll('#branches-list');
+  lists.forEach(el => {
+    el.style.display = 'block';
+    el.innerHTML = branches.map(b => `<div class="branch-item"><div><div class="branch-name">${b.name}</div></div><a class="branch-link" href="${b.url}">Leave a review →</a></div>`).join('');
+  });
+}
+
+navigator.geolocation.getCurrentPosition(
+  pos => {
+    const { latitude, longitude } = pos.coords;
+    let nearest = null, minDist = Infinity;
+    branches.forEach(b => {
+      const d = dist(latitude, longitude, parseFloat(b.lat), parseFloat(b.lng));
+      if (d < minDist) { minDist = d; nearest = b; }
+    });
+    if (nearest) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('success').style.display = 'block';
+      document.getElementById('nearest-msg').textContent = 'Taking you to ' + nearest.name + ' reviews (' + Math.round(minDist) + ' km away)';
+      setTimeout(() => { window.location.href = nearest.url; }, 1800);
+    }
+  },
+  err => {
+    document.getElementById('loading').style.display = 'none';
+    if (err.code === 1) {
+      document.getElementById('denied').style.display = 'block';
+    } else {
+      document.getElementById('error').style.display = 'block';
+    }
+    showBranchList();
+  },
+  { timeout: 8000 }
+);
+</script>
+</body>
+</html>
